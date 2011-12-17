@@ -1,0 +1,19 @@
+<html>
+<script>
+var ws;
+if (WebSocket) {
+  ws = new WebSocket("ws://localhost:9000/ws");
+} else if (MozWebsocket) {
+  ws = new MozWebSocket("ws://localhost:9000/ws");
+}
+console.log("woo?");
+ws.onopen = function() { ws.send("Hello!"); };
+ws.onmessage = function(e) { console.log(e.data); };
+ws.onclose = function() { };
+ws.onerror = function(e) { console.log("ERROR: ", e.data); };
+console.log("woo!");
+
+setTimeout(function() {console.log("What?"); ws.send("Hello?");}, 2000);
+</script>
+
+</html>
