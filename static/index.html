@@ -1,19 +1,56 @@
 <html>
+<head>
+<script src="jquery.min.js"></script>
 <script>
+/****** Constants ******/
+KEYDOWN = 1;
+KEYUP = 2;
+MOUSEDOWN = 3;
+
+/****** Websocket setup ********/
 var ws;
 if (WebSocket) {
   ws = new WebSocket("ws://localhost:9000/ws");
 } else if (MozWebsocket) {
   ws = new MozWebSocket("ws://localhost:9000/ws");
+} else {
+  $('body').text("Sorry, not supported on this browser.");
 }
-console.log("woo?");
-ws.onopen = function() { ws.send("Hello!"); };
-ws.onmessage = function(e) { console.log(e.data); };
+
+ws.onopen = function() { 
+  console.log("Connected."); 
+  ws.send(new Uint8Array([69, 70, 71, 72]).buffer); 
+};
 ws.onclose = function() { };
 ws.onerror = function(e) { console.log("ERROR: ", e.data); };
-console.log("woo!");
 
-setTimeout(function() {console.log("What?"); ws.send("Hello?");}, 2000);
+
+/******* Message handling ********/
+
+ws.onmessage = function(e) {
+  fr = new FileReader()
+  fr.readAsArrayBuffer(e.data)
+  fr.onload = function() {
+    var data = new Uint8Array(fr.result);
+    console.log("GOT: ", data); };
+  }
+
+$(function() {
+  $('body').keypress({}, function(e) {
+    if (ws.readyState == WebSocket.OPEN) {
+      ws.send(new Uint8Array([KEYDOWN, e.keyCode]).buffer);
+    }
+  })
+});
+
+/***** Test stuff, TODO: Delete this. *****/
+var foo = new Uint8Array([65, 66, 67, 68]);
+setTimeout(function() { ws.send(foo.buffer);}, 2000);
+setTimeout(function() { ws.close();}, 10000);
 </script>
+</head>
 
+<body>
+<canvas id="c" style="width: 200px; height: 200px; border: 1px solid black"></canvas>
+</body>
 </html>
