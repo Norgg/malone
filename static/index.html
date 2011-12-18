@@ -197,14 +197,15 @@ $(function() {
   var canvas = $('canvas')[0];
   var ctx = canvas.getContext('2d');
   bg = ctx.createPattern($('#bg')[0], 'repeat');
+  $('#bg').hide();
 });
 
 </script>
 </head>
 
 <body>
-<img id="bg" src="alone-bg.png" style="display:none;"/>
 <canvas width="600" height="600" style="display: none; border: 1px solid black"></canvas>
 <div id="message" style="width: 600px; text-align: center; font-family: Helvetica, sans-serif; font-size: 16pt; color: #333;">loading</div>
+<img id="bg" src="alone-bg.png"/>
 </body>
 </html>
