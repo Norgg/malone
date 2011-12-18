@@ -101,6 +101,19 @@ ws.onmessage = function(e) {
   }
 };
 
+var muted = document.cookie.indexOf("muted") > 0;
+function mute() {
+  if (muted) {
+    document.cookie = "sound=on";
+    muted=false;
+    $('#mute').text("mute");
+  } else {
+    document.cookie = "sound=muted";
+    muted=true;
+    $('#mute').text("unmute");
+  }
+}
+
 /***** Draw loop ******/
 function draw() {
   var canvas = $('canvas')[0];
@@ -174,6 +187,7 @@ function draw() {
 
 /****** Init *******/
 $(function() {
+  if (muted) { $('#mute').text("unmute"); }
   var snds = new webkitAudioContext();
 
   var request = new XMLHttpRequest();
@@ -217,9 +231,13 @@ $(function() {
       var cents = 600.0 * (r - 0.5);
       var rate = Math.pow(2.0, cents / 1200.0);
       boop.playbackRate.value = rate;
-      boop.noteOn(0);
+      if (!muted) {
+        boop.noteOn(0);
+      }
     }
+    return true;
   })
+  $('canvas')[0].onselectstart = function () { return false; }
 });
 
 
