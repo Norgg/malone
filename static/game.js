@@ -14,6 +14,8 @@ var myId = 0;
 var worldSize = 200;
 var deaded = false;
 
+
+
 /****** Websocket setup ********/
 var ws;
 var ws_path = "ws://" + window.location.host + "/ws";
@@ -34,7 +36,7 @@ ws.onopen = function() {
 };
 ws.onclose = function() { 
   if (!deaded) {
-    $('#message').text('oh no.'); 
+    $('#message').html('oh no. <a href="#" onclick="window.location.reload();">retry?</a>'); 
     //setTimeout(function(){window.location.reload();}, 4000);
   }
 };
@@ -46,15 +48,11 @@ ws.onmessage = function(e) {
   fr = new FileReader()
   fr.readAsArrayBuffer(e.data)
   fr.onloadend = function(ev) {
-    console.log("Got data.");
-
     if (!fr.result) return;
-
-    var i = 0
     
+    var i = 0
     while (i < fr.result.byteLength) {
 
-      console.log("Getting type.");
       var type = new Uint16Array(fr.result, i, 1)[0];
       i+=2;
 
@@ -83,7 +81,7 @@ ws.onmessage = function(e) {
         bullets[id] = {x: x, y: -y, keep: true};
       } else if (type == DEADED_TYPE) {
         $('#message').show();
-        $('#message').html("<a onclick='window.location.reload();'>dead: reload, respawn.</a>");
+        $('#message').html("dead: <a href='#' onclick='window.location.reload();'>reload, respawn.</a>");
         deaded = true;
         ws.close();
       }
@@ -176,6 +174,20 @@ function draw() {
 
 /****** Init *******/
 $(function() {
+  var snds = new webkitAudioContext();
+
+  var request = new XMLHttpRequest();
+  var boopBuffer;
+
+  request.open("GET", "boop2.ogg", true);
+  request.responseType = "arraybuffer";
+
+  request.onload = function() { 
+    boopBuffer = snds.createBuffer(request.response, true);
+  }
+
+  request.send();
+
   $('body').keydown({}, function(e) {
     if (ws.readyState == WebSocket.OPEN) {
       ws.send(new Uint8Array([KEYDOWN, e.keyCode]).buffer);
@@ -196,6 +208,16 @@ $(function() {
       new Uint16Array(buffer)[2] = y;
       ws.send(buffer);
       e.stopImmediatePropagation();
+      //snd.play();
+
+      var boop = snds.createBufferSource();
+      boop.connect(snds.destination);   
+      boop.buffer = boopBuffer;
+      var r = Math.random();
+      var cents = 600.0 * (r - 0.5);
+      var rate = Math.pow(2.0, cents / 1200.0);
+      boop.playbackRate.value = rate;
+      boop.noteOn(0);
     }
   })
 });
