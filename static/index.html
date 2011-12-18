@@ -1,25 +1,38 @@
 <html>
 <head>
+<title>Malone</title>
 <script src="jquery.min.js"></script>
 <script>
 /****** Constants ******/
 KEYDOWN = 1;
 KEYUP = 2;
-MOUSEDOWN = 3;
+MOUSECLICK = 3;
+
+PLAYER_TYPE = 1;
+BULLET_TYPE = 2;
+
+/***** Globals *******/
+var players = {}
+var bullets = {}
+var my_id = 0
 
 /****** Websocket setup ********/
 var ws;
+var ws_path = "ws://" + window.location.host + "/ws";
 if (WebSocket) {
-  ws = new WebSocket("ws://localhost:9000/ws");
+  ws = new WebSocket(ws_path);
 } else if (MozWebsocket) {
-  ws = new MozWebSocket("ws://localhost:9000/ws");
+  ws = new MozWebSocket(ws_path);
 } else {
-  $('body').text("Sorry, not supported on this browser.");
+  $('connect').text("Sorry, not supported on this browser.");
 }
 
 ws.onopen = function() { 
   console.log("Connected."); 
-  ws.send(new Uint8Array([69, 70, 71, 72]).buffer); 
+  $('#connect').hide();
+  $('canvas').show();
+  draw();
+  //ws.send(new Uint8Array([69, 70, 71, 72]).buffer); 
 };
 ws.onclose = function() { };
 ws.onerror = function(e) { console.log("ERROR: ", e.data); };
@@ -31,26 +44,139 @@ ws.onmessage = function(e) {
   fr = new FileReader()
   fr.readAsArrayBuffer(e.data)
   fr.onload = function() {
-    var data = new Uint8Array(fr.result);
-    console.log("GOT: ", data); };
+    if (!fr.result) return;
+
+    var i = 0
+    
+    while (i < fr.result.byteLength) {
+
+      var type = new Uint16Array(fr.result, i, 1)[0];
+      i+=2;
+
+      //console.log("Type: ", type);
+      //console.log(fr.result.byteLength);
+
+      if (type == PLAYER_TYPE) {
+        var id = new Uint16Array(fr.result, i, 1)[0]; 
+        i += 2;
+        //console.log("Player", id);
+        var xyr = new Float32Array(fr.result, i, 3);
+        i += 12;
+        var x = xyr[0];
+        var y = xyr[1];
+        var r = xyr[2];
+        //console.log("At", x, ",", y);
+        players[id] = {x: x, y: -y, r: r};
+        my_id = id; //This player will be last in list.
+      }
+      else if (type == BULLET_TYPE) {
+        var id = new Uint16Array(fr.result, i, 1)[0]; 
+        i += 2;
+        var xyr = new Float32Array(fr.result, i, 2);
+        i += 8;
+        var x = xyr[0];
+        var y = xyr[1];
+        bullets[id] = {x: x, y: -y, keep: true};
+      }
+    }
+
+    for (var id in bullets) {
+      bullet = bullets[id];
+      if (!bullet.keep) delete bullets[id];
+      bullet.keep = false
+    }
+  }
+};
+
+/***** Draw loop ******/
+function draw() {
+  var canvas = $('canvas')[0];
+  var ctx = canvas.getContext('2d');
+  
+  //Reset canvas
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  var me = players[my_id]; 
+
+  if (me) {
+    ctx.scale(6, 6);
+    ctx.translate(-me.x+50, -me.y+50);
   }
 
+  for (var id in bullets) {
+    var bullet = bullets[id];
+    ctx.beginPath();
+    ctx.arc(bullet.x, bullet.y, 0.8, 0, Math.PI*2, true);
+    ctx.fill();
+  }
+
+  //console.log("Drawing");
+  for (var id in players) {
+    var player = players[id];
+    
+    if (id == my_id) {
+      ctx.shadowBlur = 4;
+      ctx.shadowColor = "blue";
+    }
+
+    ctx.translate(player.x, player.y);
+    ctx.rotate(-player.r);
+    
+    ctx.beginPath();
+    ctx.arc(0, 0, 2, 0, Math.PI*2, true);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = "red";
+    ctx.fillRect(-0.1, -2,   0.2, 4);
+    ctx.fillRect(-2,   -0.1, 4,   0.2);
+    ctx.fillStyle = "black";
+    
+    ctx.rotate(player.r);
+    ctx.translate(-player.x, -player.y);
+  }
+
+  ctx.strokeRect(-200, -200, 400, 400);
+
+  setTimeout(draw, 15);
+}
+
+
+/***** Test stuff, TODO: Delete this. *****/
+setTimeout(function() { ws.close();}, 120000);
+
+
+/****** Init *******/
 $(function() {
-  $('body').keypress({}, function(e) {
+  $('body').keydown({}, function(e) {
     if (ws.readyState == WebSocket.OPEN) {
       ws.send(new Uint8Array([KEYDOWN, e.keyCode]).buffer);
     }
   })
+  $('body').keyup({}, function(e) {
+    if (ws.readyState == WebSocket.OPEN) {
+      ws.send(new Uint8Array([KEYUP, e.keyCode]).buffer);
+    }
+  })
+  $('canvas').click({}, function(e) {
+    if (ws.readyState == WebSocket.OPEN) {
+      var x = e.clientX - $('canvas').offset().left - 300
+      var y = 300 - e.clientY + $('canvas').offset().top
+      var buffer = new ArrayBuffer(6);
+      new Uint8Array(buffer)[0] = MOUSECLICK;
+      new Uint16Array(buffer)[1] = x;
+      new Uint16Array(buffer)[2] = y;
+      ws.send(buffer);
+    }
+  })
 });
 
-/***** Test stuff, TODO: Delete this. *****/
-var foo = new Uint8Array([65, 66, 67, 68]);
-setTimeout(function() { ws.send(foo.buffer);}, 2000);
-setTimeout(function() { ws.close();}, 10000);
 </script>
 </head>
 
 <body>
-<canvas id="c" style="width: 200px; height: 200px; border: 1px solid black"></canvas>
+<div id="connect">Loading...</div>
+<canvas width="600" height="600" style="display: none; border: 1px solid black"></canvas>
 </body>
 </html>

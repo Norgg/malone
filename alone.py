@@ -12,29 +12,32 @@ from cherrypy.process import plugins
 from ws4py.server.cherrypyserver import WebSocketPlugin, WebSocketTool
 from ws4py.server.handler.threadedhandler import WebSocketHandler
 
-world = World()
-
 KEYDOWN = 1
 KEYUP = 2
-MOUSEDOWN = 3
+MOUSECLICK = 3
+
 
 class WorldRunner(plugins.SimplePlugin):
   def stop(self):
     world.stop()
+
 
 class AloneWebSocketHandler(WebSocketHandler):
   def __init__(self, sock, protocols, extensions):
     print "Player joined."
     WebSocketHandler.__init__(self, sock, protocols, extensions)
     world.add_player(self)
-    if not world.is_alive():
-      world.start()
 
   def received_message(self, m):
     print "Got: %s" % list(m.data)
     
-    if (m.data[0] == KEYDOWN):
+    if m.data[0] == KEYDOWN:
       world.keydown(self, m.data[1])
+    elif m.data[0] == KEYUP:
+      world.keyup(self, m.data[1])
+    elif m.data[0] == MOUSECLICK:
+      x, y = struct.unpack("<hh", str(bytearray(m.data[2:])))
+      world.click(self, x, y)
 
     #self.send(m.data, binary=True)
     #cherrypy.engine.publish('websocket-broadcast', str(m))
@@ -53,6 +56,9 @@ class Root(object):
     cherrypy.log("Handler created: %s" % repr(cherrypy.request.ws_handler))
 
 if __name__ == '__main__':
+  world = World()
+  world.start()
+  
   parser = argparse.ArgumentParser(description='Malone Server')
   parser.add_argument('--host', default='0.0.0.0')
   parser.add_argument('-p', '--port', default=9000, type=int)
