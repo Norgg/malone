@@ -1,5 +1,5 @@
 from Box2D import *
-from threading import Thread
+from threading import *
 from random import random
 import time
 import struct
@@ -12,16 +12,13 @@ KEY_D = 68
 PLAYER_TYPE = 1
 BULLET_TYPE = 2
 
-class World(b2World, Thread):
+class World(Thread):
   def __init__(self):
-    aabb = b2AABB()
-    aabb.lowerBound = (-220, -220)
-    aabb.upperBound = ( 220,  220)
-    gravity = b2Vec2(0, 0)
-   
     self.players = {}
-
-    b2World.__init__(self, aabb, gravity, False)
+    self.phys = b2World((0,0), False, 
+                        contactListener = MaloneContactListener(),
+                        contactFilter   = MaloneContactFilter())
+    self.phys_lock = RLock()
     
     Thread.__init__(self)
     
@@ -38,26 +35,20 @@ class World(b2World, Thread):
     left.position   = (-210, 0)
     right.position  = ( 210, 0)
 
-    top_body = self.CreateBody(top)
-    bottom_body = self.CreateBody(bottom)
-    left_body = self.CreateBody(left)
-    right_body = self.CreateBody(right)
+    top_body = self.phys.CreateBody(top)
+    bottom_body = self.phys.CreateBody(bottom)
+    left_body = self.phys.CreateBody(left)
+    right_body = self.phys.CreateBody(right)
 
-    top_bottom_shape = b2PolygonDef()
-    top_bottom_shape.SetAsBox(210, 10)
-    left_right_shape = b2PolygonDef()
-    left_right_shape.SetAsBox(10, 210)
-
-    top_body.CreateShape(top_bottom_shape)
-    bottom_body.CreateShape(top_bottom_shape)
-    left_body.CreateShape(left_right_shape)
-    right_body.CreateShape(left_right_shape)
- 
-    
-    #self.SetContactFilter(MyContactFilter())
-
+    top_body.CreatePolygonFixture(   box=(210, 10))
+    bottom_body.CreatePolygonFixture(box=(210, 10))
+    left_body.CreatePolygonFixture(  box=(10,  210))
+    right_body.CreatePolygonFixture( box=(10,  210))
+  
   def add_player(self, conn):
+    self.phys_lock.acquire()
     self.players[conn] = Player(self, conn)
+    self.phys_lock.release()
     print("Added player to world.")
   
   def del_player(self, conn):
@@ -65,7 +56,9 @@ class World(b2World, Thread):
     for bullet in player.bullets.values():
       bullet.destroy()
     
-    self.DestroyBody(player.body)
+    self.phys_lock.acquire()
+    self.phys.DestroyBody(player.body)
+    self.phys_lock.release()
 
     del self.players[conn]
     print("Removed player.")
@@ -95,6 +88,8 @@ class World(b2World, Thread):
 
 
   def keydown(self, conn, key):
+    if not conn in self.players:
+      return
     player = self.players[conn]
     
     if (key == KEY_W):
@@ -111,6 +106,8 @@ class World(b2World, Thread):
       player.left = False
 
   def keyup(self, conn, key):
+    if not conn in self.players:
+      return
     player = self.players[conn]
     
     if (key == KEY_W):
@@ -123,6 +120,8 @@ class World(b2World, Thread):
       player.right = False
 
   def click(self, conn, x, y):
+    if not conn in self.players:
+      return
     self.players[conn].fire_at(x, y)
     pass
 
@@ -131,16 +130,15 @@ class World(b2World, Thread):
     print("World started")
     while(self.running):
       time.sleep(0.015)
-      self.Step(1.0/60, 10, 10)
+      self.phys_lock.acquire()
+      self.phys.Step(1.0/60, 10, 10)
+      self.phys_lock.release()
       self.tick += 1
 
       for player in self.players.values():
         player.update()
 
-        #player.body.ApplyForce((0.1, 0), (0, 0))
-        #if self.tick % 100 == 0:
-        #  print player.body.position
-
+      for player in self.players.values():
         if self.tick % 2 == 0:
           #Send update
           player.send_update(self.serialise(player))
@@ -154,8 +152,9 @@ class Player(object):
   id = 0
   force = 5
   r = 2
+  health = 10
   def __init__(self, world, conn):
-    self.health = 100
+    self.health = Player.health
     self.world = world
     self.conn = conn
     Player.id += 1
@@ -167,24 +166,17 @@ class Player(object):
     self.down = False
 
     #Create physics shape
-    bodyDef = b2BodyDef()
-    bodyDef.position = (random(), random())
-    self.body = world.CreateBody(bodyDef)
+    world.phys_lock.acquire()
+    self.body = world.phys.CreateDynamicBody(position=(200*random(), 200*random()))
     self.body.userData = self
-    shape = b2CircleDef()
-    shape.pos=(0,0)
-    shape.radius = Player.r
-    shape.density = 0.01
-    shape.restitution = 0.1
-    self.body.CreateShape(shape)
-    self.body.SetMassFromShapes()
-
+    self.body.CreateCircleFixture(radius=Player.r, density=0.01, restitution=0.1)
+    world.phys_lock.release()
+    
     self.bullets = {}
 
   def damage(self, d):
-    health -= d
-    if (health < 0):
-      self.world.del_player(self.conn)
+    self.health -= d
+    print "%s health left" % self.health
 
   def update(self):
     pos = self.body.position
@@ -198,6 +190,9 @@ class Player(object):
       self.body.ApplyForce((0, -Player.force), pos)
     for bullet in self.bullets.values():
       bullet.update()
+
+    if (self.health < 0):
+      self.world.del_player(self.conn)
 
   def fire_at(self, x, y):
     bullet = Bullet(self.world, self, x, y)
@@ -226,26 +221,16 @@ class Bullet(object):
     #Create physics shape
     bodyDef = b2BodyDef()
     vel = b2Vec2(aimX, aimY)
-    print "Firing towards", (aimX, aimY)
-    print "Normalized", vel.Normalize()
-    offset = (vel/vel.Normalize()) * Player.r
-    print "Offset by", offset
-
-    bodyDef.position = (x+offset.x, y+offset.y)
-    bodyDef.bullet = True
-    print "Placing at", bodyDef.position
-    print "Player at", player.body.position
-    self.body = world.CreateBody(bodyDef)
-    self.body.userData = self
-    shape = b2CircleDef()
-    shape.pos=(0,0)
-    shape.radius = Bullet.r
-    shape.density = 0.01
-    shape.restitution = 0.3
-    self.body.CreateShape(shape)
-    self.body.SetMassFromShapes()
+    vel.Normalize()
+    offset = vel * (Player.r+Bullet.r+0.1)
+    pos = (x+offset.x, y+offset.y)
+    
+    self.world.phys_lock.acquire()
+    self.body = world.phys.CreateDynamicBody(position=pos, bullet=True, userData=self)
+    self.body.CreateCircleFixture(radius=Bullet.r, density=0.01, restitution=0.3)
     self.body.linearVelocity = player.body.linearVelocity
     self.body.ApplyForce(40*vel, (x,y))
+    self.world.phys_lock.release()
   
   def update(self):
     self.ttl -= 1
@@ -253,23 +238,52 @@ class Bullet(object):
       self.destroy()
     
   def destroy(self):
-    self.world.DestroyBody(self.body)
+    self.world.phys_lock.acquire()
+    self.world.phys.DestroyBody(self.body)
+    self.world.phys_lock.release()
     del(self.player.bullets[self.id])
 
-class MyContactFilter(b2ContactFilter):
-    def __init__(self):
-        b2ContactFilter.__init__(self)
-    def ShouldCollide(self, shape1, shape2):
-        body1 = shape1.fixture.body
-        body2 = shape2.fixture.body
-        if (isinstance(body1.userData, Bullet)):
-          if (isinstnce(body2.userData, Person)):
-            if body1.userData in body2.userData.bullets:
-              return False
+class MaloneContactListener(b2ContactListener):
+  def __init__(self):
+    b2ContactListener.__init__(self)
 
-        if (isinstance(body2.userData, Person)):
-          if (isinstance(body1.userData, Bullet)):
-            if body2.userData in body1.userData.bullets:
-              return False
+  def BeginContact(self, contact):
+    pass
+  def EndContact(self, contact):
+    pass
+  def PreSolve(self, contact, oldManifold):
+    pass
 
-        return True
+  def PostSolve(self, contact, impulse):
+    objA = contact.fixtureA.body.userData
+    objB = contact.fixtureB.body.userData
+
+    if isinstance(objA, Player) and isinstance(objB, Bullet):
+      damage = abs(impulse.normalImpulses[0] - impulse.normalImpulses[1])
+      objA.damage(damage)
+      objB.ttl = 0
+
+    if isinstance(objB, Player) and isinstance(objA, Bullet):
+      damage = abs(impulse.normalImpulses[0] - impulse.normalImpulses[1])
+      objB.damage(damage)
+      objA.ttl = 0
+    
+class MaloneContactFilter(b2ContactFilter):
+  def __init__(self):
+    b2ContactFilter.__init__(self)
+
+  def ShouldCollide(self, fixture1, fixture2):
+    return True
+    obj1 = fixture1.body.userData
+    obj2 = fixture2.body.userData
+    if (isinstance(obj1, Bullet)):
+      if (isinstance(obj2, Player)):
+        if obj1 in obj2.bullets.values():
+          return False
+
+    if (isinstance(obj2, Bullet)):
+      if (isinstance(obj1, Player)):
+        if obj2 in obj1.bullets.values():
+          return False
+
+    return True
