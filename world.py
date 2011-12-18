@@ -185,7 +185,7 @@ class Player(object):
   id = 0
   force = 9
   r = 2
-  health = 0.5
+  health = 2
   def __init__(self, world, conn):
     self.health = Player.health
     self.world = world
