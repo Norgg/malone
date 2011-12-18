@@ -67,7 +67,7 @@ ws.onmessage = function(e) {
         var y = xyr[1];
         var r = xyr[2];
         //console.log("At", x, ",", y);
-        players[id] = {x: x, y: -y, r: r};
+        players[id] = {x: x, y: -y, r: r, keep: true};
         myId = id; //This player will be last in list.
       }
       else if (type == BULLET_TYPE) {
@@ -85,6 +85,12 @@ ws.onmessage = function(e) {
       bullet = bullets[id];
       if (!bullet.keep) delete bullets[id];
       bullet.keep = false
+    }
+
+    for (var id in players) {
+      player = players[id];
+      if (!player.keep) delete players[id];
+      player.keep = false
     }
   }
 };

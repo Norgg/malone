@@ -86,18 +86,25 @@ class World(Thread):
     player_list.remove(forPlayer)
     player_list.extend(self.npcs)
     player_list.append(forPlayer)
+    
+    forX = forPlayer.body.position.x
+    forY = forPlayer.body.position.y
+
+    viewport = 50
 
     for player in player_list:
-      data += struct.pack("<HHfff", PLAYER_TYPE, 
-                                    player.id, 
-                                    player.body.position.x, 
-                                    player.body.position.y, 
-                                    player.body.angle)
+      if abs(player.body.position.x - forX) < viewport and abs(player.body.position.y - forY) < viewport:
+        data += struct.pack("<HHfff", PLAYER_TYPE, 
+                                      player.id, 
+                                      player.body.position.x, 
+                                      player.body.position.y, 
+                                      player.body.angle)
       for bullet in player.bullets.values():
-        data += struct.pack("<HHff", BULLET_TYPE, 
-                                      bullet.id, 
-                                      bullet.body.position.x, 
-                                      bullet.body.position.y)
+        if abs(bullet.body.position.x - forX) < viewport and abs(bullet.body.position.y - forY) < viewport:
+          data += struct.pack("<HHff", BULLET_TYPE, 
+                                        bullet.id, 
+                                        bullet.body.position.x, 
+                                        bullet.body.position.y)
         
    
     return bytearray(data)
