@@ -13,8 +13,11 @@ PLAYER_TYPE = 1
 BULLET_TYPE = 2
 
 class World(Thread):
+  size = 200
+  
   def __init__(self):
     self.players = {}
+    self.npcs = []
     self.phys = b2World((0,0), False, 
                         contactListener = MaloneContactListener(),
                         contactFilter   = MaloneContactFilter())
@@ -26,33 +29,41 @@ class World(Thread):
     self.tick = 0
 
     #Create walls
-    top = b2BodyDef()
+    top    = b2BodyDef()
     bottom = b2BodyDef()
-    left = b2BodyDef()
-    right = b2BodyDef()
-    top.position    = (0,  210)
-    bottom.position = (0, -210)
-    left.position   = (-210, 0)
-    right.position  = ( 210, 0)
+    left   = b2BodyDef()
+    right  = b2BodyDef()
+    
+    top.position    = (0,  World.size + 10)
+    bottom.position = (0, -World.size - 10)
+    left.position   = (-World.size - 10, 0)
+    right.position  = ( World.size + 10, 0)
 
-    top_body = self.phys.CreateBody(top)
+    top_body    = self.phys.CreateBody(top)
     bottom_body = self.phys.CreateBody(bottom)
-    left_body = self.phys.CreateBody(left)
-    right_body = self.phys.CreateBody(right)
+    left_body   = self.phys.CreateBody(left)
+    right_body  = self.phys.CreateBody(right)
 
-    top_body.CreatePolygonFixture(   box=(210, 10))
-    bottom_body.CreatePolygonFixture(box=(210, 10))
-    left_body.CreatePolygonFixture(  box=(10,  210))
-    right_body.CreatePolygonFixture( box=(10,  210))
+    top_body.CreatePolygonFixture(   box=(World.size + 10, 10))
+    bottom_body.CreatePolygonFixture(box=(World.size + 10, 10))
+    left_body.CreatePolygonFixture(  box=(10, World.size + 10))
+    right_body.CreatePolygonFixture( box=(10, World.size + 10))
+
+    self.add_npc()
+    self.add_npc()
+    self.add_npc()
+    self.add_npc()
+    self.add_npc()
   
   def add_player(self, conn):
-    self.phys_lock.acquire()
     self.players[conn] = Player(self, conn)
-    self.phys_lock.release()
     print("Added player to world.")
+
+  def add_npc(self):
+    self.npcs.append(NPC(self, None))
+    print("Added npc.")
   
-  def del_player(self, conn):
-    player = self.players[conn]
+  def del_player(self, conn, player):
     for bullet in player.bullets.values():
       bullet.destroy()
     
@@ -60,8 +71,12 @@ class World(Thread):
     self.phys.DestroyBody(player.body)
     self.phys_lock.release()
 
-    del self.players[conn]
-    print("Removed player.")
+    if conn:
+      del self.players[conn]
+      print("Removed player.")
+    else:
+      self.npcs.remove(player)
+      print("Removed npc.")
 
   def serialise(self, forPlayer):
     data = ""
@@ -69,6 +84,7 @@ class World(Thread):
     #Ensure this player is at the end of the player list.
     player_list = self.players.values()
     player_list.remove(forPlayer)
+    player_list.extend(self.npcs)
     player_list.append(forPlayer)
 
     for player in player_list:
@@ -138,6 +154,9 @@ class World(Thread):
       for player in self.players.values():
         player.update()
 
+      for player in self.npcs:
+        player.update()
+
       for player in self.players.values():
         if self.tick % 2 == 0:
           #Send update
@@ -192,7 +211,7 @@ class Player(object):
       bullet.update()
 
     if (self.health < 0):
-      self.world.del_player(self.conn)
+      self.world.del_player(self.conn, self)
 
   def fire_at(self, x, y):
     bullet = Bullet(self.world, self, x, y)
@@ -203,7 +222,18 @@ class Player(object):
       #print "Sending %s" % list(update)
       self.conn.send(update, binary=True)
     except:
-      self.world.del_player(self.conn)
+      self.world.del_player(self.conn, self)
+
+class NPC(Player):
+  def __init__(self, world, conn):
+    Player.__init__(self, world, conn)
+
+  def update(self):
+    Player.update(self)
+    if (random() > 0.98):
+      self.fire_at(100*(random()-0.5), 100*(random()-0.5))
+    if (self.health < 0):
+      self.world.add_npc()
 
 class Bullet(object):
   id = 0

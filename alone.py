@@ -39,13 +39,6 @@ class AloneWebSocketHandler(WebSocketHandler):
       x, y = struct.unpack("<hh", str(bytearray(m.data[2:])))
       world.click(self, x, y)
 
-    #self.send(m.data, binary=True)
-    #cherrypy.engine.publish('websocket-broadcast', str(m))
-
-  #def closed(self, code, reason=None):
-  #  print "Closed."
-  #  world.del_player(self)
-
 class Root(object):
   def __init__(self, host, port):
     self.host = host

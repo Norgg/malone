@@ -12,9 +12,10 @@ PLAYER_TYPE = 1;
 BULLET_TYPE = 2;
 
 /***** Globals *******/
-var players = {}
-var bullets = {}
-var my_id = 0
+var players = {};
+var bullets = {};
+var myId = 0;
+var worldSize = 200;
 
 /****** Websocket setup ********/
 var ws;
@@ -67,7 +68,7 @@ ws.onmessage = function(e) {
         var r = xyr[2];
         //console.log("At", x, ",", y);
         players[id] = {x: x, y: -y, r: r};
-        my_id = id; //This player will be last in list.
+        myId = id; //This player will be last in list.
       }
       else if (type == BULLET_TYPE) {
         var id = new Uint16Array(fr.result, i, 1)[0]; 
@@ -97,7 +98,7 @@ function draw() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  var me = players[my_id]; 
+  var me = players[myId]; 
 
   if (me) {
     ctx.scale(6, 6);
@@ -115,7 +116,7 @@ function draw() {
   for (var id in players) {
     var player = players[id];
     
-    if (id == my_id) {
+    if (id == myId) {
       ctx.shadowBlur = 4;
       ctx.shadowColor = "blue";
     }
@@ -137,7 +138,7 @@ function draw() {
     ctx.translate(-player.x, -player.y);
   }
 
-  ctx.strokeRect(-200, -200, 400, 400);
+  ctx.strokeRect(-worldSize, -worldSize, worldSize*2, worldSize*2);
 
   setTimeout(draw, 15);
 }
