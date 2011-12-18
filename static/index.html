@@ -81,7 +81,7 @@ ws.onmessage = function(e) {
         bullets[id] = {x: x, y: -y, keep: true};
       } else if (type == DEADED_TYPE) {
         $('#message').show();
-        $('#message').text("dead: reload → respawn.");
+        $('#message').html("<a onclick='window.location.reload();'>dead: reload → respawn.</a>");
         deaded = true;
         ws.close();
       }
