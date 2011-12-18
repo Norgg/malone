@@ -85,6 +85,10 @@ class World(Thread):
       self.npcs.remove(player)
       print("Removed npc.")
 
+  def killall(self):
+    for player in self.players.values():
+      self.del_player(player.conn, player)
+
   def serialise(self, forPlayer):
     data = ""
 
@@ -179,6 +183,7 @@ class World(Thread):
     print("World stopped")
       
   def stop(self):
+    self.killall()
     self.running = False
 
 class Player(object):

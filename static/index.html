@@ -32,13 +32,12 @@ if (WebSocket) {
 }
 
 ws.onopen = function() { 
-  console.log("Connected."); 
   $('#message').hide();
   $('canvas').show();
   draw();
   //ws.send(new Uint8Array([69, 70, 71, 72]).buffer); 
 };
-ws.onclose = function() { };
+ws.onclose = function() { if (!deaded) $('#message').text('disconnected'); };
 ws.onerror = function(e) { console.log("ERROR: ", e.data); };
 
 
