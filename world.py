@@ -116,10 +116,7 @@ class World(Thread):
                                         bullet.id % 65536, 
                                         bullet.body.position.x, 
                                         bullet.body.position.y)
-        
-   
     return bytearray(data)
-
 
   def keydown(self, conn, key):
     if not conn in self.players:
