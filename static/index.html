@@ -27,7 +27,7 @@ if (WebSocket) {
 } else if (MozWebsocket) {
   ws = new MozWebSocket(ws_path);
 } else {
-  $('#message').text("Sorry, not supported on this browser.");
+  $('#message').text("sorry, not supported on this browser.");
 }
 
 ws.onopen = function() { 
@@ -81,7 +81,7 @@ ws.onmessage = function(e) {
         bullets[id] = {x: x, y: -y, keep: true};
       } else if (type == DEADED_TYPE) {
         $('#message').show();
-        $('#message').text("Deaded.  Reload to respawn.");
+        $('#message').text("dead: reload → respawn.");
         deaded = true;
         ws.close();
       }
@@ -105,11 +105,17 @@ ws.onmessage = function(e) {
 function draw() {
   var canvas = $('canvas')[0];
   var ctx = canvas.getContext('2d');
+  var me = players[myId]; 
   
   if (deaded) {
-    ctx.fillStyle = "rgba(255, 0, 0, 0.1)";
+    ctx.fillStyle = "rgba(150, 0, 0, 0.1)";
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    setTimeout(draw, 15);
+    return;
+  }
+
+  if (!me) {
     setTimeout(draw, 15);
     return;
   }
@@ -117,12 +123,9 @@ function draw() {
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  var me = players[myId]; 
 
-  if (me) {
-    ctx.scale(6, 6);
-    ctx.translate(-me.x+50, -me.y+50);
-  }
+  ctx.scale(6, 6);
+  ctx.translate(-me.x+50, -me.y+50);
 
   for (var id in bullets) {
     var bullet = bullets[id];
@@ -193,6 +196,6 @@ $(function() {
 
 <body>
 <canvas width="600" height="600" style="display: none; border: 1px solid black"></canvas>
-<div id="message">Loading...</div>
+<div id="message" style="width: 600px; text-align: center; font-family: Helvetica, sans-serif; font-size: 16pt; color: #333;">loading</div>
 </body>
 </html>

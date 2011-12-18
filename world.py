@@ -102,14 +102,14 @@ class World(Thread):
     for player in player_list:
       if abs(player.body.position.x - forX) < viewport and abs(player.body.position.y - forY) < viewport:
         data += struct.pack("<HHfff", PLAYER_TYPE, 
-                                      player.id, 
+                                      player.id % 65536, 
                                       player.body.position.x, 
                                       player.body.position.y, 
                                       player.body.angle)
       for bullet in player.bullets.values():
         if abs(bullet.body.position.x - forX) < viewport and abs(bullet.body.position.y - forY) < viewport:
           data += struct.pack("<HHff", BULLET_TYPE, 
-                                        bullet.id, 
+                                        bullet.id % 65536, 
                                         bullet.body.position.x, 
                                         bullet.body.position.y)
         
@@ -183,7 +183,7 @@ class World(Thread):
 
 class Player(object):
   id = 0
-  force = 5
+  force = 9
   r = 2
   health = 0.5
   def __init__(self, world, conn):
