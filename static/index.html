@@ -19,7 +19,6 @@ var bullets = {};
 var myId = 0;
 var worldSize = 200;
 var deaded = false;
-var bg;
 
 /****** Websocket setup ********/
 var ws;
@@ -107,12 +106,6 @@ function draw() {
   var canvas = $('canvas')[0];
   var ctx = canvas.getContext('2d');
   var me = players[myId]; 
-
-  bg = new Image();
-  bg.src = 'alone-bg.png';
-  bg.onload = function() {
-    bg = ctx.createPattern(img,'repeat');
-  }
   
   if (deaded) {
     ctx.fillStyle = "rgba(150, 0, 0, 0.1)";
@@ -129,10 +122,10 @@ function draw() {
   //Reset canvas
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
   ctx.scale(6, 6);
   ctx.translate(-me.x+50, -me.y+50);
 
+  var bg = ctx.createPattern($('#bg')[0], 'repeat');
   ctx.fillStyle=bg;
   ctx.fillRect(-worldSize, -worldSize, worldSize*2, worldSize*2);
   ctx.fillStyle="black";
@@ -177,7 +170,6 @@ function draw() {
 
 /****** Init *******/
 $(function() {
-
   $('body').keydown({}, function(e) {
     if (ws.readyState == WebSocket.OPEN) {
       ws.send(new Uint8Array([KEYDOWN, e.keyCode]).buffer);
@@ -200,13 +192,13 @@ $(function() {
       e.stopImmediatePropagation();
     }
   })
-
 });
 
 </script>
 </head>
 
 <body>
+<img id="bg" src="alone-bg.png" style="display:none;"/>
 <canvas width="600" height="600" style="display: none; border: 1px solid black"></canvas>
 <div id="message" style="width: 600px; text-align: center; font-family: Helvetica, sans-serif; font-size: 16pt; color: #333;">loading</div>
 </body>
