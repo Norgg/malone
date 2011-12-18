@@ -10,12 +10,14 @@ MOUSECLICK = 3;
 
 PLAYER_TYPE = 1;
 BULLET_TYPE = 2;
+DEADED_TYPE = 3;
 
 /***** Globals *******/
 var players = {};
 var bullets = {};
 var myId = 0;
 var worldSize = 200;
+var deaded = false;
 
 /****** Websocket setup ********/
 var ws;
@@ -25,12 +27,12 @@ if (WebSocket) {
 } else if (MozWebsocket) {
   ws = new MozWebSocket(ws_path);
 } else {
-  $('connect').text("Sorry, not supported on this browser.");
+  $('#message').text("Sorry, not supported on this browser.");
 }
 
 ws.onopen = function() { 
   console.log("Connected."); 
-  $('#connect').hide();
+  $('#message').hide();
   $('canvas').show();
   draw();
   //ws.send(new Uint8Array([69, 70, 71, 72]).buffer); 
@@ -69,8 +71,7 @@ ws.onmessage = function(e) {
         //console.log("At", x, ",", y);
         players[id] = {x: x, y: -y, r: r, keep: true};
         myId = id; //This player will be last in list.
-      }
-      else if (type == BULLET_TYPE) {
+      } else if (type == BULLET_TYPE) {
         var id = new Uint16Array(fr.result, i, 1)[0]; 
         i += 2;
         var xyr = new Float32Array(fr.result, i, 2);
@@ -78,6 +79,11 @@ ws.onmessage = function(e) {
         var x = xyr[0];
         var y = xyr[1];
         bullets[id] = {x: x, y: -y, keep: true};
+      } else if (type == DEADED_TYPE) {
+        $('#message').show();
+        $('#message').text("Deaded.  Reload to respawn.");
+        deaded = true;
+        ws.close();
       }
     }
 
@@ -100,6 +106,13 @@ function draw() {
   var canvas = $('canvas')[0];
   var ctx = canvas.getContext('2d');
   
+  if (deaded) {
+    ctx.fillStyle = "rgba(255, 0, 0, 0.1)";
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    setTimeout(draw, 15);
+    return;
+  }
   //Reset canvas
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -170,6 +183,7 @@ $(function() {
       new Uint16Array(buffer)[1] = x;
       new Uint16Array(buffer)[2] = y;
       ws.send(buffer);
+      e.stopImmediatePropagation();
     }
   })
 });
@@ -178,7 +192,7 @@ $(function() {
 </head>
 
 <body>
-<div id="connect">Loading...</div>
 <canvas width="600" height="600" style="display: none; border: 1px solid black"></canvas>
+<div id="message">Loading...</div>
 </body>
 </html>

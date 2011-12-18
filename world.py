@@ -11,6 +11,7 @@ KEY_D = 68
 
 PLAYER_TYPE = 1
 BULLET_TYPE = 2
+DEADED_TYPE = 3
 
 class World(Thread):
   size = 200
@@ -73,6 +74,12 @@ class World(Thread):
 
     if conn:
       del self.players[conn]
+      
+      try:
+        conn.send(struct.pack("<h", DEADED_TYPE), binary=True)
+      except: #Probably because player has disconnected, ignore.
+        pass
+      
       print("Removed player.")
     else:
       self.npcs.remove(player)
@@ -178,7 +185,7 @@ class Player(object):
   id = 0
   force = 5
   r = 2
-  health = 10
+  health = 0.5
   def __init__(self, world, conn):
     self.health = Player.health
     self.world = world
@@ -241,6 +248,21 @@ class NPC(Player):
       self.fire_at(100*(random()-0.5), 100*(random()-0.5))
     if (self.health < 0):
       self.world.add_npc()
+
+    #TODO: Fix the maths here.
+    if (random() > 0.95):
+      self.up = True
+      self.down = self.left = self.right = False 
+    elif (random() > 0.90):
+      self.down = True
+      self.up = self.left = self.right = False 
+    elif (random() > 0.85):
+      self.left = True
+      self.up = self.down = self.right = False 
+    elif (random() > 0.80):
+      self.right = True
+      self.up = self.down = self.left = False 
+
 
 class Bullet(object):
   id = 0
