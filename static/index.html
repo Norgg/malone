@@ -128,8 +128,8 @@ function draw() {
   var bg = ctx.createPattern($('#bg')[0], 'repeat');
   ctx.fillStyle=bg;
   ctx.fillRect(-worldSize, -worldSize, worldSize*2, worldSize*2);
-  ctx.fillStyle="black";
 
+  ctx.fillStyle = "rgba(150, 0, 0, 0.8)";
   for (var id in bullets) {
     var bullet = bullets[id];
     ctx.beginPath();
@@ -137,27 +137,31 @@ function draw() {
     ctx.fill();
   }
 
-  //console.log("Drawing");
   for (var id in players) {
     var player = players[id];
     
-    if (id == myId) {
-      ctx.shadowBlur = 4;
-      ctx.shadowColor = "blue";
-    }
-
     ctx.translate(player.x, player.y);
     ctx.rotate(-player.r);
     
+    ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
     ctx.beginPath();
     ctx.arc(0, 0, 2, 0, Math.PI*2, true);
     ctx.fill();
-    ctx.shadowBlur = 0;
 
-    ctx.fillStyle = "red";
+
+    ctx.shadowBlur = 1;
+    if (id == myId) {
+      ctx.shadowColor = "yellow";
+    } else {
+      ctx.shadowColor = "red";
+    }
+
+    ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
     ctx.fillRect(-0.1, -2,   0.2, 4);
     ctx.fillRect(-2,   -0.1, 4,   0.2);
     ctx.fillStyle = "black";
+    
+    ctx.shadowBlur = 0;
     
     ctx.rotate(player.r);
     ctx.translate(-player.x, -player.y);
