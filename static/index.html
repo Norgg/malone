@@ -35,9 +35,13 @@ ws.onopen = function() {
   $('#message').hide();
   $('canvas').show();
   draw();
-  //ws.send(new Uint8Array([69, 70, 71, 72]).buffer); 
 };
-ws.onclose = function() { if (!deaded) $('#message').text('disconnected'); };
+ws.onclose = function() { 
+  if (!deaded) {
+    $('#message').text('oh no.'); 
+    setTimeout(function(){window.location.reload();}, 1000);
+  }
+};
 ws.onerror = function(e) { console.log("ERROR: ", e.data); };
 
 
