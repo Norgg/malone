@@ -171,6 +171,9 @@ function draw() {
 
 /****** Init *******/
 $(function() {
+  var canvas = $('canvas')[0];
+  var ctx = canvas.getContext('2d');
+  bg = ctx.createPattern($('#bg')[0], 'repeat');
   $('body').keydown({}, function(e) {
     if (ws.readyState == WebSocket.OPEN) {
       ws.send(new Uint8Array([KEYDOWN, e.keyCode]).buffer);
@@ -194,9 +197,6 @@ $(function() {
     }
   })
 
-  var canvas = $('canvas')[0];
-  var ctx = canvas.getContext('2d');
-  bg = ctx.createPattern($('#bg')[0], 'repeat');
 });
 
 </script>
