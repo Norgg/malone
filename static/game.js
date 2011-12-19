@@ -6,6 +6,7 @@ MOUSECLICK = 3;
 PLAYER_TYPE = 1;
 BULLET_TYPE = 2;
 DEADED_TYPE = 3;
+DEATHSOUND_TYPE = 4;
 
 /***** Globals *******/
 var players = {};
@@ -15,6 +16,9 @@ var worldSize = 200;
 var deaded = false;
 
 
+var snds;
+var boopBuffer;
+var deathsoundBuffer;
 
 /****** Websocket setup ********/
 var ws;
@@ -29,7 +33,7 @@ if ("WebSocket" in window) {
 }
 
 ws.onopen = function() { 
-  $('#message').hide();
+  $('#message').text("wasd/mouse");
   $('canvas').show();
   console.log("Opened.");
   draw();
@@ -80,10 +84,16 @@ ws.onmessage = function(e) {
         var y = xyr[1];
         bullets[id] = {x: x, y: -y, keep: true};
       } else if (type == DEADED_TYPE) {
-        $('#message').show();
-        $('#message').html("dead: <a href='#' onclick='window.location.reload();'>reload, respawn.</a>");
+        $('#message').html("dead: <a href='#' onclick='window.location.reload();'>reload</a> ⇛ respawn.");
         deaded = true;
         ws.close();
+      } else if (type == DEATHSOUND_TYPE) {
+        if (!muted) {
+          var deathsound = snds.createBufferSource();
+          deathsound.connect(snds.destination);   
+          deathsound.buffer = deathsoundBuffer;
+          deathsound.noteOn(0);
+        }
       }
     }
 
@@ -188,30 +198,41 @@ function draw() {
 /****** Init *******/
 $(function() {
   if (muted) { $('#mute').text("unmute"); }
-  var snds = new webkitAudioContext();
+  
+  if ("webkitAudioContext" in window) {
+    snds = new webkitAudioContext();
+    
+    var request = new XMLHttpRequest();
+    request.open("GET", "boop2.ogg", true);
+    request.responseType = "arraybuffer";
+    request.onload = function() { 
+      boopBuffer = snds.createBuffer(request.response, true);
+    }
+    request.send();
 
-  var request = new XMLHttpRequest();
-  var boopBuffer;
-
-  request.open("GET", "boop2.ogg", true);
-  request.responseType = "arraybuffer";
-
-  request.onload = function() { 
-    boopBuffer = snds.createBuffer(request.response, true);
+    var dRequest = new XMLHttpRequest();
+    dRequest.open("GET", "death.ogg", true);
+    dRequest.responseType = "arraybuffer";
+    dRequest.onload = function() { 
+      deathsoundBuffer = snds.createBuffer(dRequest.response, true);
+    }
+    dRequest.send();
+  } else {
+    $('#mute').hide();
+    muted = true;
   }
 
-  request.send();
-
-  $('body').keydown({}, function(e) {
+  document.body.onkeydown = function(e) {
     if (ws.readyState == WebSocket.OPEN) {
       ws.send(new Uint8Array([KEYDOWN, e.keyCode]).buffer);
     }
-  })
-  $('body').keyup({}, function(e) {
+  }
+  document.body.onkeyup = function(e) {
     if (ws.readyState == WebSocket.OPEN) {
       ws.send(new Uint8Array([KEYUP, e.keyCode]).buffer);
     }
-  })
+  }
+
   $('canvas').click({}, function(e) {
     if (ws.readyState == WebSocket.OPEN) {
       var x = e.clientX - $('canvas').offset().left - 300
@@ -222,20 +243,18 @@ $(function() {
       new Uint16Array(buffer)[2] = y;
       ws.send(buffer);
       e.stopImmediatePropagation();
-      //snd.play();
 
-      var boop = snds.createBufferSource();
-      boop.connect(snds.destination);   
-      boop.buffer = boopBuffer;
-      var r = Math.random();
-      var cents = 600.0 * (r - 0.5);
-      var rate = Math.pow(2.0, cents / 1200.0);
-      boop.playbackRate.value = rate;
       if (!muted) {
+        var boop = snds.createBufferSource();
+        boop.connect(snds.destination);   
+        boop.buffer = boopBuffer;
+        var r = Math.random();
+        var cents = 600.0 * (r - 0.5);
+        var rate = Math.pow(2.0, cents / 1200.0);
+        boop.playbackRate.value = rate;
         boop.noteOn(0);
       }
     }
-    return true;
   })
   $('canvas')[0].onselectstart = function () { return false; }
 });

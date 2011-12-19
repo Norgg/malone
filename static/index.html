@@ -1,15 +1,45 @@
 <html>
 <head>
-<title>Malone</title>
+<title>'malone?</title>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
 <script src="jquery.min.js"></script>
 <script src="game.js"></script>
+<style>
+body {
+  font-family: Helvetica, sans-serif; 
+  font-size: 16pt; 
+  color: #333;
+}
+
+div {
+  width: 600px;
+  margin: 0 auto;
+}
+
+div.ctrl {
+  font-size: 50%;
+  text-align: right;
+}
+</style>
+
 </head>
 
 <body>
-<div><a href="javacript:void(0);" onclick="mute();" id="mute">mute</a></div>
+<div><h3>'malone?</h3></div>
+<div class="ctrl"><a href="javacript:void(0);" onclick="mute();" id="mute">mute</a></div>
+<div><canvas width="600" height="600" style="display: none; border: 1px solid #ccc"></canvas></div>
+<div class="ctrl"><a href='javascript:void(0);' onclick='$("#about").show();'>what?</a></div>
+<div id="message" style="text-align: center;">loading... <a href="#" onclick="window.location.reload();">retry?</a></div>
+
+
 <img id="bg" src="alone-bg.png" style="display:none;"/>
-<div><canvas width="600" height="600" style="display: none; border: 1px solid black"></canvas></div>
-<div id="message" style="width: 600px; text-align: center; font-family: Helvetica, sans-serif; font-size: 16pt; color: #333;">loading... <a href="#" onclick="window.location.reload();">retry?</a></div>
+
+<div id="about" style="display:none;">
+<h4>About:</h4>
+<p>A multiplayer game by <a href="http://twitter.com/norgg">Norgg</a>, with some humans and some simple bots.  Are you playing alone?</p>
+<p>Backend in python with ws4py, pybox2d and cherrypy.</p>
+<p>Fontend in JavaScript/jQuery, using canvas, websockets and the webkit audio API.</p>
+</div>
+
 </body>
 </html>

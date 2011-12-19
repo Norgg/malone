@@ -12,6 +12,7 @@ KEY_D = 68
 PLAYER_TYPE = 1
 BULLET_TYPE = 2
 DEADED_TYPE = 3
+DEATHSOUND_TYPE = 4
 
 class World(Thread):
   size = 200
@@ -57,14 +58,22 @@ class World(Thread):
     self.add_npc()
   
   def add_player(self, conn):
-    self.players[conn] = Player(self, conn)
-    print("Added player to world.")
+    player = Player(self, conn)
+    self.players[conn] = player
+    print("Added player %d." % player.id)
 
   def add_npc(self):
-    self.npcs.append(NPC(self, None))
-    print("Added npc.")
+    npc = NPC(self)
+    self.npcs.append(npc)
+    print("Added npc %d." % npc.id)
   
   def del_player(self, conn, player):
+    for p in self.players.values():
+      try:
+        p.conn.send(struct.pack("<h", DEATHSOUND_TYPE), binary=True)
+      except: #Probably because player has disconnected, ignore.
+        pass
+
     for bullet in player.bullets.values():
       bullet.destroy()
     
@@ -80,10 +89,10 @@ class World(Thread):
       except: #Probably because player has disconnected, ignore.
         pass
       
-      print("Removed player.")
+      print("Removed player %d." % player.id)
     else:
       self.npcs.remove(player)
-      print("Removed npc.")
+      print("Removed npc %d." % player.id)
 
   def killall(self):
     for player in self.players.values():
@@ -124,17 +133,13 @@ class World(Thread):
     player = self.players[conn]
     
     if (key == KEY_W):
-      player.up = True
-      player.down = False
+      player.up = 100
     elif (key == KEY_S):
-      player.down = True
-      player.up = False
+      player.down = 100
     elif (key == KEY_A):
-      player.left = True
-      player.right = False
+      player.left = 100
     elif (key == KEY_D):
-      player.right = True
-      player.left = False
+      player.right = 100
 
   def keyup(self, conn, key):
     if not conn in self.players:
@@ -142,13 +147,13 @@ class World(Thread):
     player = self.players[conn]
     
     if (key == KEY_W):
-      player.up = False
+      player.up = 0
     elif (key == KEY_S):
-      player.down = False
+      player.down = 0
     elif (key == KEY_A):
-      player.left = False
+      player.left = 0
     elif (key == KEY_D):
-      player.right = False
+      player.right = 0
 
   def click(self, conn, x, y):
     if not conn in self.players:
@@ -211,9 +216,17 @@ class Player(object):
 
   def damage(self, d):
     self.health -= d
-    print "%s health left" % self.health
+    #print "%s health left" % self.health
 
   def update(self):
+    if self.up:
+      self.up -= 1
+    if self.down:
+      self.down -= 1
+    if self.left:
+      self.left -= 1
+    if self.right:
+      self.right -= 1
     pos = self.body.position
     if self.left:
       self.body.ApplyForce((-Player.force, 0), pos)
@@ -241,8 +254,8 @@ class Player(object):
       self.world.del_player(self.conn, self)
 
 class NPC(Player):
-  def __init__(self, world, conn):
-    Player.__init__(self, world, conn)
+  def __init__(self, world):
+    Player.__init__(self, world, None)
 
   def update(self):
     Player.update(self)

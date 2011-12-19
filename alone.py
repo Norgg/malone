@@ -22,15 +22,14 @@ class WorldRunner(plugins.SimplePlugin):
   def stop(self):
     world.stop()
 
-
 class AloneWebSocketHandler(WebSocketHandler):
   def __init__(self, sock, protocols, extensions):
-    print "Player joined."
+    #print "Player joined."
     WebSocketHandler.__init__(self, sock, protocols, extensions)
     world.add_player(self)
 
   def received_message(self, m):
-    print "Got: %s" % list(m.data)
+    #print "Got: %s" % list(m.data)
     
     if m.data[0] == KEYDOWN:
       world.keydown(self, m.data[1])
@@ -53,7 +52,7 @@ if __name__ == '__main__':
   world = World()
   world.start()
   
-  parser = argparse.ArgumentParser(description='Malone Server')
+  parser = argparse.ArgumentParser(description='\'malone? Server')
   parser.add_argument('--host', default='0.0.0.0')
   parser.add_argument('-p', '--port', default=9000, type=int)
   args = parser.parse_args()
