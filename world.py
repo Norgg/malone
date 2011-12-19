@@ -72,7 +72,7 @@ class World(Thread):
       try:
         p.conn.send(struct.pack("<hh", DEATHSOUND_TYPE, player.id % 65536), binary=True)
       except: #Probably because player has disconnected, ignore.
-        pass
+        print("Failed to send death sound.")
 
     for bullet in player.bullets.values():
       bullet.destroy()
@@ -87,7 +87,7 @@ class World(Thread):
       try:
         conn.send(struct.pack("<h", DEADED_TYPE), binary=True)
       except: #Probably because player has disconnected, ignore.
-        pass
+        print("Failed to send death notification.")
       
       print("Removed player %d." % player.id)
     else:
@@ -336,10 +336,14 @@ class MaloneContactListener(b2ContactListener):
     if isinstance(objA, Player) and isinstance(objB, Bullet):
       damage = abs(impulse.normalImpulses[0] - impulse.normalImpulses[1])
       objA.damage(damage)
+      if objA.health <= 0:
+        print "player %s killed by player %d" % (objA.id, objB.player.id)
 
     if isinstance(objB, Player) and isinstance(objA, Bullet):
       damage = abs(impulse.normalImpulses[0] - impulse.normalImpulses[1])
       objB.damage(damage)
+      if objB.health <= 0:
+        print "player %s killed by player %d" % (objB.id, objA.player.id)
     
 class MaloneContactFilter(b2ContactFilter):
   def __init__(self):
