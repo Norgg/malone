@@ -133,13 +133,13 @@ class World(Thread):
     player = self.players[conn]
     
     if (key == KEY_W):
-      player.up = 100
+      player.up = 50
     elif (key == KEY_S):
-      player.down = 100
+      player.down = 50
     elif (key == KEY_A):
-      player.left = 100
+      player.left = 50
     elif (key == KEY_D):
-      player.right = 100
+      player.right = 50
 
   def keyup(self, conn, key):
     if not conn in self.players:
@@ -190,10 +190,9 @@ class World(Thread):
 
 class Player(object):
   id = 0
-  force = 20
+  force = 8
   r = 2
   health = 2
-  max_speed = 40
   def __init__(self, world, conn):
     self.health = Player.health
     self.world = world
@@ -201,10 +200,10 @@ class Player(object):
     Player.id += 1
     self.id = Player.id
 
-    self.left = False
-    self.right = False
-    self.up = False
-    self.down = False
+    self.left = 0
+    self.right = 0
+    self.up = 0
+    self.down = 0
 
     #Create physics shape
     world.phys_lock.acquire()
@@ -243,10 +242,6 @@ class Player(object):
     if (self.health < 0):
       self.world.del_player(self.conn, self)
     
-    speed = self.body.linearVelocity.length
-    if speed > Player.max_speed:
-      self.body.linearVelocity *= (Player.max_speed/speed)
-
   def fire_at(self, x, y):
     bullet = Bullet(self.world, self, x, y)
     self.bullets[bullet.id] = bullet
@@ -271,17 +266,17 @@ class NPC(Player):
 
     #TODO: Fix the maths here.
     if (random() > 0.95):
-      self.up = True
-      self.down = self.left = self.right = False 
+      self.up = 50
+      self.down = self.left = self.right = 0 
     elif (random() > 0.90):
-      self.down = True
-      self.up = self.left = self.right = False 
+      self.down = 50
+      self.up = self.left = self.right = 0 
     elif (random() > 0.85):
-      self.left = True
-      self.up = self.down = self.right = False 
+      self.left = 50
+      self.up = self.down = self.right = 0 
     elif (random() > 0.80):
-      self.right = True
-      self.up = self.down = self.left = False 
+      self.right = 50
+      self.up = self.down = self.left = 0 
 
 
 class Bullet(object):
@@ -340,12 +335,10 @@ class MaloneContactListener(b2ContactListener):
     if isinstance(objA, Player) and isinstance(objB, Bullet):
       damage = abs(impulse.normalImpulses[0] - impulse.normalImpulses[1])
       objA.damage(damage)
-      objB.ttl = 0
 
     if isinstance(objB, Player) and isinstance(objA, Bullet):
       damage = abs(impulse.normalImpulses[0] - impulse.normalImpulses[1])
       objB.damage(damage)
-      objA.ttl = 0
     
 class MaloneContactFilter(b2ContactFilter):
   def __init__(self):
