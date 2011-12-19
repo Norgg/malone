@@ -332,19 +332,18 @@ class MaloneContactListener(b2ContactListener):
   def PostSolve(self, contact, impulse):
     objA = contact.fixtureA.body.userData
     objB = contact.fixtureB.body.userData
-
-    if isinstance(objA, Player) and isinstance(objB, Bullet):
-      damage = abs(impulse.normalImpulses[0] - impulse.normalImpulses[1])
-      objA.damage(damage)
-      if objA.health <= 0:
-        print "player %s killed by player %d" % (objA.id, objB.player.id)
-
-    if isinstance(objB, Player) and isinstance(objA, Bullet):
-      damage = abs(impulse.normalImpulses[0] - impulse.normalImpulses[1])
-      objB.damage(damage)
-      if objB.health <= 0:
-        print "player %s killed by player %d" % (objB.id, objA.player.id)
     
+    player = objA if isinstance(objA, Player) else objB if isinstance(objB, Player) else None
+    bullet = objA if isinstance(objA, Bullet) else objB if isinstance(objB, Bullet) else None
+
+    if player and bullet:
+      damage = abs(impulse.normalImpulses[0] - impulse.normalImpulses[1])
+      player.damage(damage)
+      if player.health <= 0:
+        killee = "player" if player.conn else "bot"
+        killer = "player" if bullet.player.conn else "bot"
+        print "%s %d killed by %s %d" % (killee, player.id, killer, bullet.player.id)
+
 class MaloneContactFilter(b2ContactFilter):
   def __init__(self):
     b2ContactFilter.__init__(self)
