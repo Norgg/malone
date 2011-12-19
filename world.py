@@ -190,9 +190,10 @@ class World(Thread):
 
 class Player(object):
   id = 0
-  force = 9
+  force = 20
   r = 2
   health = 2
+  max_speed = 40
   def __init__(self, world, conn):
     self.health = Player.health
     self.world = world
@@ -241,6 +242,10 @@ class Player(object):
 
     if (self.health < 0):
       self.world.del_player(self.conn, self)
+    
+    speed = self.body.linearVelocity.length
+    if speed > Player.max_speed:
+      self.body.linearVelocity *= (Player.max_speed/speed)
 
   def fire_at(self, x, y):
     bullet = Bullet(self.world, self, x, y)
