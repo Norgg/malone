@@ -70,7 +70,7 @@ class World(Thread):
   def del_player(self, conn, player):
     for p in self.players.values():
       try:
-        p.conn.send(struct.pack("<h", DEATHSOUND_TYPE), binary=True)
+        p.conn.send(struct.pack("<hh", DEATHSOUND_TYPE, player.id % 65536), binary=True)
       except: #Probably because player has disconnected, ignore.
         pass
 
