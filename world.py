@@ -251,6 +251,7 @@ class Player(object):
       #print "Sending %s" % list(update)
       self.conn.send(update, binary=True)
     except:
+      print "Failed to send update to %d, disconnecting." % self.id
       self.world.del_player(self.conn, self)
 
 class NPC(Player):
