@@ -3,6 +3,7 @@ from threading import *
 from random import random
 import time
 import struct
+import traceback
 
 KEY_W = 87
 KEY_S = 83
@@ -70,7 +71,8 @@ class World(Thread):
   def del_player(self, conn, player):
     for p in self.players.values():
       try:
-        p.conn.send(struct.pack("<hh", DEATHSOUND_TYPE, player.id % 65536), binary=True)
+        p.send_death_sound = True
+        pass
       except: #Probably because player has disconnected, ignore.
         print("Failed to send death sound.")
 
@@ -88,6 +90,7 @@ class World(Thread):
         conn.send(struct.pack("<h", DEADED_TYPE), binary=True)
       except: #Probably because player has disconnected, ignore.
         print("Failed to send death notification.")
+        traceback.print_exc()
       
       print("Removed player %d." % player.id)
     else:
@@ -199,6 +202,8 @@ class Player(object):
     self.conn = conn
     Player.id += 1
     self.id = Player.id
+    
+    self.send_death_sound = False
 
     self.left = 0
     self.right = 0
@@ -249,9 +254,13 @@ class Player(object):
   def send_update(self, update):
     try: 
       #print "Sending %s" % list(update)
+      if self.send_death_sound:
+        update = update + struct.pack("<hh", DEATHSOUND_TYPE, self.id % 65536)
+        self.send_death_sound = False
       self.conn.send(update, binary=True)
     except:
       print "Failed to send update to %d, disconnecting." % self.id
+      traceback.print_exc()
       self.world.del_player(self.conn, self)
 
 class NPC(Player):
