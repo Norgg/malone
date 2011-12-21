@@ -95,17 +95,17 @@ class World(Thread):
     for player in self.players.values():
       self.del_player(player.conn, player)
 
-  def serialise(self, forPlayer):
+  def serialise(self, for_player):
     data = ""
 
     #Ensure this player is at the end of the player list.
     player_list = self.players.values()
-    player_list.remove(forPlayer)
+    player_list.remove(for_player)
     player_list += self.npcs
-    player_list.append(forPlayer)
+    player_list.append(for_player)
     
-    forX = forPlayer.body.position.x
-    forY = forPlayer.body.position.y
+    forX = for_player.body.position.x
+    forY = for_player.body.position.y
 
     viewport = 50
 
@@ -238,6 +238,8 @@ class Player(object):
       self.body.ApplyForce((0, -Player.force), pos)
 
     if (self.health < 0):
+      if (self.conn):
+        self.send_update(self.world.serialise(self))
       self.world.del_player(self.conn, self)
     
   def fire_at(self, x, y):
