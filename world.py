@@ -21,6 +21,7 @@ class World(Thread):
   def __init__(self):
     self.players = {}
     self.npcs = []
+    self.bullets = []
     self.phys = b2World((0,0), False, 
                         contactListener = MaloneContactListener(),
                         contactFilter   = MaloneContactFilter())
@@ -69,19 +70,11 @@ class World(Thread):
     print("Added npc %d." % npc.id)
   
   def del_player(self, conn, player):
-    for p in self.players.values():
-      try:
-        p.send_death_sound = True
-        pass
-      except: #Probably because player has disconnected, ignore.
-        print("Failed to send death sound.")
-
-    for bullet in player.bullets.values():
-      bullet.destroy()
-    
     self.phys_lock.acquire()
+    for p in self.players.values():
+      p.send_death_sound = True
+
     self.phys.DestroyBody(player.body)
-    self.phys_lock.release()
 
     if conn:
       del self.players[conn]
@@ -96,6 +89,7 @@ class World(Thread):
     else:
       self.npcs.remove(player)
       print("Removed npc %d." % player.id)
+    self.phys_lock.release()
 
   def killall(self):
     for player in self.players.values():
@@ -107,7 +101,7 @@ class World(Thread):
     #Ensure this player is at the end of the player list.
     player_list = self.players.values()
     player_list.remove(forPlayer)
-    player_list.extend(self.npcs)
+    player_list += self.npcs
     player_list.append(forPlayer)
     
     forX = forPlayer.body.position.x
@@ -122,11 +116,11 @@ class World(Thread):
                                       player.body.position.x, 
                                       player.body.position.y, 
                                       player.body.angle)
-      for bullet in player.bullets.values():
-        if abs(bullet.body.position.x - forX) < viewport and abs(bullet.body.position.y - forY) < viewport:
-          data += struct.pack("<HHff", BULLET_TYPE, 
-                                        bullet.id % 65536, 
-                                        bullet.body.position.x, 
+    for bullet in self.bullets:
+      if abs(bullet.body.position.x - forX) < viewport and abs(bullet.body.position.y - forY) < viewport:
+        data += struct.pack("<HHff", BULLET_TYPE, 
+                                      bullet.id % 65536, 
+                                      bullet.body.position.x, 
                                         bullet.body.position.y)
     return bytearray(data)
 
@@ -180,6 +174,9 @@ class World(Thread):
       for player in self.npcs:
         player.update()
 
+      for bullet in self.bullets:
+        bullet.update()
+
       for player in self.players.values():
         if self.tick % 2 == 0:
           #Send update
@@ -217,8 +214,6 @@ class Player(object):
     self.body.CreateCircleFixture(radius=Player.r, density=0.01, restitution=0.1)
     world.phys_lock.release()
     
-    self.bullets = {}
-
   def damage(self, d):
     self.health -= d
     #print "%s health left" % self.health
@@ -241,15 +236,13 @@ class Player(object):
       self.body.ApplyForce((0, Player.force), pos)
     if self.down:
       self.body.ApplyForce((0, -Player.force), pos)
-    for bullet in self.bullets.values():
-      bullet.update()
 
     if (self.health < 0):
       self.world.del_player(self.conn, self)
     
   def fire_at(self, x, y):
     bullet = Bullet(self.world, self, x, y)
-    self.bullets[bullet.id] = bullet
+    self.world.bullets.append(bullet)
 
   def send_update(self, update):
     try: 
@@ -325,7 +318,7 @@ class Bullet(object):
     self.world.phys_lock.acquire()
     self.world.phys.DestroyBody(self.body)
     self.world.phys_lock.release()
-    del(self.player.bullets[self.id])
+    self.world.bullets.remove(self)
 
 class MaloneContactListener(b2ContactListener):
   def __init__(self):
@@ -347,7 +340,11 @@ class MaloneContactListener(b2ContactListener):
 
     if player and bullet:
       damage = abs(impulse.normalImpulses[0] - impulse.normalImpulses[1])
-      player.damage(damage)
+      if bullet.player.health <= 0:
+        print "Removing phantom bullet."
+        
+      else: 
+        player.damage(damage)
       if player.health <= 0:
         killee = "player" if player.conn else "bot"
         killer = "player" if bullet.player.conn else "bot"
