@@ -340,11 +340,7 @@ class MaloneContactListener(b2ContactListener):
 
     if player and bullet:
       damage = abs(impulse.normalImpulses[0] - impulse.normalImpulses[1])
-      if bullet.player.health <= 0:
-        print "Removing phantom bullet."
-        
-      else: 
-        player.damage(damage)
+      player.damage(damage)
       if player.health <= 0:
         killee = "player" if player.conn else "bot"
         killer = "player" if bullet.player.conn else "bot"
