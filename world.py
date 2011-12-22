@@ -80,7 +80,7 @@ class World(Thread):
       del self.players[conn]
       
       try:
-        conn.send(struct.pack("<h", DEADED_TYPE), binary=True)
+        conn.send(struct.pack("<H", DEADED_TYPE), binary=True)
       except: #Probably because player has disconnected, ignore.
         print("Failed to send death notification.")
         traceback.print_exc()
@@ -250,7 +250,7 @@ class Player(object):
     try: 
       #print "Sending %s" % list(update)
       if self.send_death_sound:
-        update = update + struct.pack("<hh", DEATHSOUND_TYPE, self.id % 65536)
+        update = update + struct.pack("<HH", DEATHSOUND_TYPE, self.id % 65536)
         self.send_death_sound = False
       self.conn.send(update, binary=True)
     except:
