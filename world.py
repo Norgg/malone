@@ -183,6 +183,8 @@ class Player(object):
     self.shots = 1
     self.range = Player.range
 
+    self.do_grow = False
+
     #Create physics shape
     world.phys_lock.acquire()
     self.body = world.phys.CreateDynamicBody(position=(200*random(), 200*random()))
@@ -198,6 +200,7 @@ class Player(object):
     pos = self.body.position
     
     if self.do_grow:
+      self.do_grow = False
       self.r *= 1.2
       self.body.DestroyFixture(self.fixture)
       self.fixture = self.body.CreateCircleFixture(radius=self.r, density=0.01 * self.kills, restitution=0.1)
