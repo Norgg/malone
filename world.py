@@ -165,6 +165,7 @@ class Player(object):
   force = 100
   r = 2
   health = 2
+  range = 100
 
   def __init__(self, world, conn):
     self.health = Player.health
@@ -180,6 +181,7 @@ class Player(object):
     self.kills = 0
 
     self.shots = 1
+    self.range = Player.range
 
     #Create physics shape
     world.phys_lock.acquire()
@@ -194,6 +196,11 @@ class Player(object):
 
   def update(self):
     pos = self.body.position
+    
+    if self.do_grow:
+      self.r *= 1.2
+      self.body.DestroyFixture(self.fixture)
+      self.fixture = self.body.CreateCircleFixture(radius=self.r, density=0.01 * self.kills, restitution=0.1)
 
     if (self.health < 0):
       if self.killed_by:
@@ -204,7 +211,7 @@ class Player(object):
     
   def fire_at(self, x, y):
     for i in range(0, self.shots):
-      bullet = Bullet(self.world, self, x + self.shots*(random()-0.5), y + self.shots*(random()-0.5))
+      bullet = Bullet(self.world, self, x + self.shots*(random()-0.5), y + self.shots*(random()-0.5), self.range)
       self.world.bullets.append(bullet)
   
   def move_towards(self, x, y):
@@ -226,14 +233,11 @@ class Player(object):
 
   def add_kill(self):
     self.kills += 1
-    self.shots += 1
+    if self.kills % 2 == 0:
+      self.shots += 1
     self.health += 1 
-    self.grow()
-
-  def grow(self):
-    self.r *= 1.2
-    self.body.DestroyFixture(self.fixture)
-    self.fixture = self.body.CreateCircleFixture(radius=self.r, density=0.01, restitution=0.1)
+    self.do_grow = True
+    self.range = Player.range - self.kills*5
 
 class NPC(Player):
   def __init__(self, world):
@@ -264,13 +268,12 @@ class NPC(Player):
 class Bullet(object):
   id = 0
   r = 0.8
-  ttl = 100
-  def __init__(self, world, player, aimX, aimY):
+  def __init__(self, world, player, aimX, aimY, ttl):
     x = player.body.position.x
     y = player.body.position.y
     Bullet.id += 1
     self.id = Bullet.id
-    self.ttl = Bullet.ttl
+    self.ttl = ttl
     self.world = world
     self.player = player
 
