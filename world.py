@@ -53,8 +53,6 @@ class World(Thread):
     left_body.CreatePolygonFixture(  box=(10, World.size + 10))
     right_body.CreatePolygonFixture( box=(10, World.size + 10))
 
-    self.add_npc()
-  
   def add_player(self, conn):
     player = Player(self, conn)
     self.players[conn] = player
