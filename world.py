@@ -54,10 +54,6 @@ class World(Thread):
     right_body.CreatePolygonFixture( box=(10, World.size + 10))
 
     self.add_npc()
-    self.add_npc()
-    self.add_npc()
-    self.add_npc()
-    self.add_npc()
   
   def add_player(self, conn):
     player = Player(self, conn)
@@ -107,15 +103,16 @@ class World(Thread):
     forX = for_player.body.position.x
     forY = for_player.body.position.y
 
-    viewport = 50
+    viewport = 80
 
     for player in player_list:
       if abs(player.body.position.x - forX) < viewport and abs(player.body.position.y - forY) < viewport:
-        data += struct.pack("<HHfff", PLAYER_TYPE, 
+        data += struct.pack("<HHffff", PLAYER_TYPE, 
                                       player.id % 65536, 
                                       player.body.position.x, 
                                       player.body.position.y, 
-                                      player.body.angle)
+                                      player.body.angle,
+                                      player.r)
     for bullet in self.bullets:
       if abs(bullet.body.position.x - forX) < viewport and abs(bullet.body.position.y - forY) < viewport:
         data += struct.pack("<HHff", BULLET_TYPE, 
@@ -124,40 +121,17 @@ class World(Thread):
                                         bullet.body.position.y)
     return bytearray(data)
 
-  def keydown(self, conn, key):
-    if not conn in self.players:
-      return
-    player = self.players[conn]
-    
-    if (key == KEY_W):
-      player.up = 50
-    elif (key == KEY_S):
-      player.down = 50
-    elif (key == KEY_A):
-      player.left = 50
-    elif (key == KEY_D):
-      player.right = 50
-
-  def keyup(self, conn, key):
-    if not conn in self.players:
-      return
-    player = self.players[conn]
-    
-    if (key == KEY_W):
-      player.up = 0
-    elif (key == KEY_S):
-      player.down = 0
-    elif (key == KEY_A):
-      player.left = 0
-    elif (key == KEY_D):
-      player.right = 0
-
   def click(self, conn, x, y):
     if not conn in self.players:
       return
     self.players[conn].fire_at(x, y)
     pass
-
+  
+  def rightclick(self, conn, x, y):
+    if not conn in self.players:
+      return
+    self.players[conn].move_towards(x, y)
+    pass
 
   def run(self):
     print("World started")
@@ -190,9 +164,10 @@ class World(Thread):
 
 class Player(object):
   id = 0
-  force = 8
+  force = 100
   r = 2
   health = 2
+
   def __init__(self, world, conn):
     self.health = Player.health
     self.world = world
@@ -200,18 +175,19 @@ class Player(object):
     Player.id += 1
     self.id = Player.id
     
+    self.killed_by = None
     self.send_death_sound = False
 
-    self.left = 0
-    self.right = 0
-    self.up = 0
-    self.down = 0
+    self.r = Player.r
+    self.kills = 0
+
+    self.shots = 1
 
     #Create physics shape
     world.phys_lock.acquire()
     self.body = world.phys.CreateDynamicBody(position=(200*random(), 200*random()))
     self.body.userData = self
-    self.body.CreateCircleFixture(radius=Player.r, density=0.01, restitution=0.1)
+    self.fixture = self.body.CreateCircleFixture(radius=self.r, density=0.01, restitution=0.1)
     world.phys_lock.release()
     
   def damage(self, d):
@@ -219,32 +195,24 @@ class Player(object):
     #print "%s health left" % self.health
 
   def update(self):
-    if self.up:
-      self.up -= 1
-    if self.down:
-      self.down -= 1
-    if self.left:
-      self.left -= 1
-    if self.right:
-      self.right -= 1
     pos = self.body.position
-    if self.left:
-      self.body.ApplyForce((-Player.force, 0), pos)
-    if self.right:
-      self.body.ApplyForce((Player.force, 0), pos)
-    if self.up:
-      self.body.ApplyForce((0, Player.force), pos)
-    if self.down:
-      self.body.ApplyForce((0, -Player.force), pos)
 
     if (self.health < 0):
+      if self.killed_by:
+        self.killed_by.add_kill()
       if (self.conn):
         self.send_update(self.world.serialise(self))
       self.world.del_player(self.conn, self)
     
   def fire_at(self, x, y):
-    bullet = Bullet(self.world, self, x, y)
-    self.world.bullets.append(bullet)
+    for i in range(0, self.shots):
+      bullet = Bullet(self.world, self, x + self.shots*(random()-0.5), y + self.shots*(random()-0.5))
+      self.world.bullets.append(bullet)
+  
+  def move_towards(self, x, y):
+    print("Moving towards %d, %d" % (x, y))
+    imp = b2Vec2(x, y)/30
+    self.body.ApplyLinearImpulse(imp, (self.body.position.x, self.body.position.y))
 
   def send_update(self, update):
     try: 
@@ -257,6 +225,17 @@ class Player(object):
       print "Failed to send update to %d, disconnecting." % self.id
       traceback.print_exc()
       self.world.del_player(self.conn, self)
+
+  def add_kill(self):
+    self.kills += 1
+    self.shots += 1
+    self.health += 1 
+    self.grow()
+
+  def grow(self):
+    self.r *= 1.2
+    self.body.DestroyFixture(self.fixture)
+    self.fixture = self.body.CreateCircleFixture(radius=self.r, density=0.01, restitution=0.1)
 
 class NPC(Player):
   def __init__(self, world):
@@ -287,7 +266,7 @@ class NPC(Player):
 class Bullet(object):
   id = 0
   r = 0.8
-  ttl = 300
+  ttl = 100
   def __init__(self, world, player, aimX, aimY):
     x = player.body.position.x
     y = player.body.position.y
@@ -301,14 +280,14 @@ class Bullet(object):
     bodyDef = b2BodyDef()
     vel = b2Vec2(aimX, aimY)
     vel.Normalize()
-    offset = vel * (Player.r+Bullet.r+0.1)
+    offset = vel * (player.r+Bullet.r+0.1)
     pos = (x+offset.x, y+offset.y)
     
     self.world.phys_lock.acquire()
     self.body = world.phys.CreateDynamicBody(position=pos, bullet=True, userData=self)
     self.body.CreateCircleFixture(radius=Bullet.r, density=0.01, restitution=0.3)
     self.body.linearVelocity = player.body.linearVelocity
-    self.body.ApplyForce(40*vel, (x,y))
+    self.body.ApplyLinearImpulse(5*vel, (x,y))
     self.world.phys_lock.release()
   
   def update(self):
@@ -321,6 +300,7 @@ class Bullet(object):
     self.world.phys.DestroyBody(self.body)
     self.world.phys_lock.release()
     self.world.bullets.remove(self)
+  
 
 class MaloneContactListener(b2ContactListener):
   def __init__(self):
@@ -344,6 +324,7 @@ class MaloneContactListener(b2ContactListener):
       damage = abs(impulse.normalImpulses[0] - impulse.normalImpulses[1])
       player.damage(damage)
       if player.health <= 0:
+        player.killed_by = bullet.player
         killee = "player" if player.conn else "bot"
         killer = "player" if bullet.player.conn else "bot"
         print "%s %d killed by %s %d" % (killee, player.id, killer, bullet.player.id)
@@ -353,17 +334,16 @@ class MaloneContactFilter(b2ContactFilter):
     b2ContactFilter.__init__(self)
 
   def ShouldCollide(self, fixture1, fixture2):
-    return True
     obj1 = fixture1.body.userData
     obj2 = fixture2.body.userData
     if (isinstance(obj1, Bullet)):
       if (isinstance(obj2, Player)):
-        if obj1 in obj2.bullets.values():
+        if obj1.player == obj2:
           return False
 
     if (isinstance(obj2, Bullet)):
       if (isinstance(obj1, Player)):
-        if obj2 in obj1.bullets.values():
+        if obj2.player == obj1:
           return False
 
     return True

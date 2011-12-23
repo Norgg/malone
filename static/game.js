@@ -1,7 +1,8 @@
 /****** Constants ******/
 var KEYDOWN = 1;
 var KEYUP = 2;
-var MOUSECLICK = 3;
+var LEFT_MOUSE_CLICK = 3;
+var RIGHT_MOUSE_CLICK = 4;
 
 var PLAYER_TYPE = 1;
 var BULLET_TYPE = 2;
@@ -22,6 +23,8 @@ var deathsoundBuffer;
 
 var ws;
 var wsPath = "ws://" + window.location.host + "/ws";
+
+var zoom = 4;
 
 /****** Init *******/
 $(function() {
@@ -61,12 +64,19 @@ $(function() {
     }
   }
 
-  $('canvas').click({}, function(e) {
+  $('canvas').mousedown({}, function(e) {
     if (ws.readyState == WebSocket.OPEN) {
       var x = e.clientX - $('canvas').offset().left - 300
       var y = 300 - e.clientY + $('canvas').offset().top
       var buffer = new ArrayBuffer(6);
-      new Uint8Array(buffer)[0] = MOUSECLICK;
+      if (e.which == 1) {
+        new Uint8Array(buffer)[0] = LEFT_MOUSE_CLICK;
+      } else if (e.which == 3) {
+        new Uint8Array(buffer)[0] = RIGHT_MOUSE_CLICK;
+      } else {
+        return;
+      }
+
       new Uint16Array(buffer)[1] = x;
       new Uint16Array(buffer)[2] = y;
       ws.send(buffer);
@@ -87,6 +97,11 @@ $(function() {
 
   //Stop double-clicking from selecting anything else other than the canvas.
   $('canvas')[0].onselectstart = function () { return false; }
+
+  //Disable right-click menu
+  $('canvas').bind("contextmenu",function(e){
+    return false;
+  });
 });
 
 /****** Websocket setup ********/
@@ -134,13 +149,14 @@ ws.onmessage = function(e) {
         var id = new Uint16Array(fr.result, i, 1)[0]; 
         i += 2;
         //console.log("Player", id);
-        var xyr = new Float32Array(fr.result, i, 3);
+        var xyr = new Float32Array(fr.result, i, 4);
         i += 12;
         var x = xyr[0];
         var y = xyr[1];
-        var r = xyr[2];
+        var angle = xyr[2];
+        var r = xyr[3];
         //console.log("At", x, ",", y);
-        players[id] = {x: x, y: -y, r: r, keep: true};
+        players[id] = {x: x, y: -y, angle: angle, r: r, keep: true};
         myId = id; //This player will be last in list.
       } else if (type == BULLET_TYPE) {
         var id = new Uint16Array(fr.result, i, 1)[0]; 
@@ -222,8 +238,8 @@ function draw() {
   //Reset canvas
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.scale(6, 6);
-  ctx.translate(-me.x+50, -me.y+50);
+  ctx.scale(zoom, zoom);
+  ctx.translate(-me.x+canvas.width/2/zoom, -me.y+canvas.height/2/zoom);
 
   var bg = ctx.createPattern($('#bg')[0], 'repeat');
   ctx.fillStyle=bg;
@@ -241,11 +257,11 @@ function draw() {
     var player = players[id];
     
     ctx.translate(player.x, player.y);
-    ctx.rotate(-player.r);
+    ctx.rotate(-player.angle);
     
     ctx.fillStyle = "rgba(0, 0, 0, 0.8)";
     ctx.beginPath();
-    ctx.arc(0, 0, 2, 0, Math.PI*2, true);
+    ctx.arc(0, 0, player.r, 0, Math.PI*2, true);
     ctx.fill();
 
 
@@ -257,13 +273,13 @@ function draw() {
     }
 
     ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-    ctx.fillRect(-0.1, -2,   0.2, 4);
-    ctx.fillRect(-2,   -0.1, 4,   0.2);
+    ctx.fillRect(-0.1, -player.r,   0.2, 2*player.r);
+    ctx.fillRect(-player.r,   -0.1, 2*player.r,   0.2);
     ctx.fillStyle = "black";
     
     ctx.shadowBlur = 0;
     
-    ctx.rotate(player.r);
+    ctx.rotate(player.angle);
     ctx.translate(-player.x, -player.y);
   }
 

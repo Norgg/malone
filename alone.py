@@ -15,7 +15,8 @@ from ws4py.server.handler.threadedhandler import WebSocketHandler
 
 KEYDOWN = 1
 KEYUP = 2
-MOUSECLICK = 3
+LEFT_MOUSE_CLICK = 3
+RIGHT_MOUSE_CLICK = 4
 
 
 class WorldRunner(plugins.SimplePlugin):
@@ -31,13 +32,12 @@ class AloneWebSocketHandler(WebSocketHandler):
   def received_message(self, m):
     #print "Got: %s" % list(m.data)
     
-    if m.data[0] == KEYDOWN:
-      world.keydown(self, m.data[1])
-    elif m.data[0] == KEYUP:
-      world.keyup(self, m.data[1])
-    elif m.data[0] == MOUSECLICK:
+    if m.data[0] == LEFT_MOUSE_CLICK:
       x, y = struct.unpack("<hh", str(bytearray(m.data[2:])))
       world.click(self, x, y)
+    elif m.data[0] == RIGHT_MOUSE_CLICK:
+      x, y = struct.unpack("<hh", str(bytearray(m.data[2:])))
+      world.rightclick(self, x, y)
 
 class Root(object):
   def __init__(self, host, port):
