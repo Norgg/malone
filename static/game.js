@@ -115,7 +115,7 @@ if ("WebSocket" in window) {
 }
 
 ws.onopen = function() { 
-  $('#message').text("wasd/mouse");
+  $('#message').text("left/right mouse");
   $('canvas').show();
   console.log("Opened.");
   draw();
