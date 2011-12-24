@@ -52,6 +52,10 @@ class World(Thread):
     bottom_body.CreatePolygonFixture(box=(World.size + 10, 10))
     left_body.CreatePolygonFixture(  box=(10, World.size + 10))
     right_body.CreatePolygonFixture( box=(10, World.size + 10))
+    self.add_npc()
+    self.add_npc()
+    self.add_npc()
+    self.add_npc()
 
   def add_player(self, conn):
     player = Player(self, conn)
@@ -240,7 +244,7 @@ class Player(object):
       self.shots += 1
     self.health += 1 
     self.do_grow = True
-    self.range = Player.range - self.kills*5
+    self.range *= 0.8
 
 class NPC(Player):
   def __init__(self, world):
